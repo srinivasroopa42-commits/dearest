@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Upload, Image as ImageIcon, Link as LinkIcon, Trash2 } from 'lucide-react';
 import { Product } from '../types';
 
 interface UploadModalProps {
@@ -17,6 +17,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd
     image: '',
     description: ''
   });
+  const [activeTab, setActiveTab] = useState<'FILE' | 'URL'>('FILE');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -44,7 +46,44 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd
       image: '',
       description: ''
     });
+    setActiveTab('FILE');
     onClose();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, image: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, image: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearImage = () => {
+    setFormData({ ...formData, image: '' });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -109,31 +148,96 @@ export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose, onAdd
                     </div>
                   </div>
 
+                  {/* Image Upload Section */}
                   <div>
-                    <label htmlFor="image" className="block text-sm font-medium text-gray-700 text-left">Image URL</label>
-                    <div className="mt-1 flex rounded-md shadow-sm">
-                      <input
-                        type="url"
-                        id="image"
-                        className="block w-full flex-1 rounded-md border-gray-300 focus:border-black focus:ring-black border p-2 sm:text-sm"
-                        value={formData.image}
-                        onChange={e => setFormData({...formData, image: e.target.value})}
-                        placeholder="https://..."
-                      />
-                    </div>
+                    <label className="block text-sm font-medium text-gray-700 text-left mb-2">Product Image</label>
                     
-                    {/* Enhanced Preview Section */}
-                    {formData.image && (
-                      <div className="mt-3 relative w-full h-48 rounded-md border-2 border-dashed border-gray-300 overflow-hidden bg-gray-50 flex items-center justify-center">
-                        <img 
+                    {/* Tabs */}
+                    <div className="flex border-b border-gray-200 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('FILE')}
+                        className={`pb-2 px-4 text-sm font-medium transition-colors focus:outline-none ${
+                          activeTab === 'FILE' 
+                            ? 'border-b-2 border-black text-black' 
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('URL')}
+                        className={`pb-2 px-4 text-sm font-medium transition-colors focus:outline-none ${
+                          activeTab === 'URL' 
+                            ? 'border-b-2 border-black text-black' 
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        Image URL
+                      </button>
+                    </div>
+
+                    {!formData.image ? (
+                      activeTab === 'FILE' ? (
+                        <div 
+                          className="mt-1 flex justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pt-5 pb-6 hover:bg-gray-50 transition-colors cursor-pointer"
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop}
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <div className="space-y-1 text-center">
+                            <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                            <div className="flex text-sm text-gray-600 justify-center">
+                              <label htmlFor="file-upload" className="relative cursor-pointer rounded-md bg-white font-medium text-black focus-within:outline-none focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2 hover:text-gray-700">
+                                <span>Upload a file</span>
+                                <input 
+                                  id="file-upload" 
+                                  name="file-upload" 
+                                  type="file" 
+                                  className="sr-only" 
+                                  accept="image/*"
+                                  ref={fileInputRef}
+                                  onChange={handleFileChange}
+                                />
+                              </label>
+                              <p className="pl-1">or drag and drop</p>
+                            </div>
+                            <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-1 flex rounded-md shadow-sm">
+                          <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 sm:text-sm">
+                            <LinkIcon className="h-4 w-4" />
+                          </span>
+                          <input
+                            type="url"
+                            id="image-url"
+                            className="flex-1 block w-full min-w-0 rounded-none rounded-r-md border-gray-300 focus:border-black focus:ring-black sm:text-sm border p-2"
+                            placeholder="https://example.com/image.jpg"
+                            value={formData.image}
+                            onChange={(e) => setFormData({...formData, image: e.target.value})}
+                          />
+                        </div>
+                      )
+                    ) : (
+                      <div className="relative rounded-md overflow-hidden border border-gray-200 bg-gray-50 group">
+                         <img 
                           src={formData.image} 
                           alt="Preview" 
-                          className="h-full w-full object-contain" 
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.display = 'none';
-                            // You could show a fallback icon here if needed
-                          }} 
+                          className="w-full h-48 object-contain" 
                         />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={clearImage}
+                            className="bg-white text-red-600 p-2 rounded-full hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            title="Remove image"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

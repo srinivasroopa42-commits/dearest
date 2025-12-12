@@ -11,7 +11,7 @@ import { UploadModal } from './components/UploadModal';
 import { Logo } from './components/Logo';
 import { PRODUCTS as INITIAL_PRODUCTS } from './constants';
 import { Product, CartItem, User, Address, ViewState, PaymentMethod, FilterState, Review } from './types';
-import { CheckCircle, Plus } from 'lucide-react';
+import { CheckCircle, Plus, Lock } from 'lucide-react';
 
 const App: React.FC = () => {
   // --- State ---
@@ -24,6 +24,15 @@ const App: React.FC = () => {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   
+  // Admin State with Persistence
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem('dearest_is_admin') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dearest_is_admin', isAdmin.toString());
+  }, [isAdmin]);
+
   // Wishlist State with Persistence
   const [wishlist, setWishlist] = useState<string[]>(() => {
     const saved = localStorage.getItem('dearest_wishlist');
@@ -54,8 +63,9 @@ const App: React.FC = () => {
 
   const filteredProducts = products.filter(product => {
     // 1. Search Term Match
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          product.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = product.name.toLowerCase().includes(term) || 
+                          product.category.toLowerCase().includes(term);
     
     // 2. Category Match
     const matchesCategory = filters.category ? product.category === filters.category : true;
@@ -69,6 +79,48 @@ const App: React.FC = () => {
   });
 
   // --- Handlers ---
+
+  const handleAdminLogin = () => {
+    // Prevent recursion or double prompts
+    if (document.visibilityState === 'hidden') return;
+
+    if (isAdmin) {
+      if (window.confirm("Logout of Admin mode?")) {
+        setIsAdmin(false);
+      }
+      return;
+    }
+    
+    // Small timeout to prevent UI blocking
+    setTimeout(() => {
+      const password = window.prompt("Enter Admin Password:");
+      if (password === "admin123") {
+        setIsAdmin(true);
+        alert("Admin Mode Enabled.\n\n- You are now logged in as Admin.\n- Use the (+) button in the navbar to upload products.");
+      } else if (password !== null) {
+        alert("Incorrect Password.");
+      }
+    }, 100);
+  };
+
+  // Keyboard Shortcut for Admin Login (Shift + A)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        handleAdminLogin();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAdmin]);
+
+  // Search shortcut for admin
+  useEffect(() => {
+    if (searchTerm.toLowerCase() === 'admin') {
+      handleAdminLogin();
+      setSearchTerm(''); // clear search
+    }
+  }, [searchTerm]);
 
   const handleFetchLatestProducts = () => {
     console.log("Fetching latest products...");
@@ -205,6 +257,7 @@ const App: React.FC = () => {
         onFilterChange={setFilters}
         categories={categories}
         onFetchLatest={handleFetchLatestProducts}
+        isAdmin={isAdmin}
       />
 
       <main>
@@ -231,12 +284,14 @@ const App: React.FC = () => {
                   >
                     Shop Now
                   </button>
-                  <button 
-                    onClick={() => setIsUploadOpen(true)}
-                    className="border border-white text-white px-8 py-3 rounded-sm font-medium hover:bg-white/10 transition-colors"
-                  >
-                    Upload Item
-                  </button>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => setIsUploadOpen(true)}
+                      className="border border-white text-white px-8 py-3 rounded-sm font-medium hover:bg-white/10 transition-colors"
+                    >
+                      Upload Item
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -253,14 +308,18 @@ const App: React.FC = () => {
               {products.length === 0 ? (
                 <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-lg">
                   <h3 className="text-lg font-medium text-gray-900">No products yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">Get started by adding your first innerwear product to the collection.</p>
-                  <button 
-                    onClick={() => setIsUploadOpen(true)}
-                    className="mt-6 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-black hover:bg-gray-800"
-                  >
-                    <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                    Add Product
-                  </button>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {isAdmin ? 'Get started by adding your first innerwear product.' : 'Our new collection is launching soon.'}
+                  </p>
+                  {isAdmin && (
+                    <button 
+                      onClick={() => setIsUploadOpen(true)}
+                      className="mt-6 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-black hover:bg-gray-800"
+                    >
+                      <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+                      Add Product
+                    </button>
+                  )}
                 </div>
               ) : filteredProducts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-10 gap-x-6 xl:gap-x-8">
@@ -355,11 +414,14 @@ const App: React.FC = () => {
         onLogin={handleLogin}
       />
 
-      <UploadModal 
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-        onAddProduct={handleAddProduct}
-      />
+      {/* Admin Protected Upload Modal */}
+      {isAdmin && (
+        <UploadModal 
+          isOpen={isUploadOpen}
+          onClose={() => setIsUploadOpen(false)}
+          onAddProduct={handleAddProduct}
+        />
+      )}
 
       <AiStylist 
         view={view}
@@ -388,6 +450,24 @@ const App: React.FC = () => {
                <li><a href="#" className="hover:text-white">Terms of Service</a></li>
              </ul>
            </div>
+        </div>
+        
+        {/* Discrete Admin Login Section - Hidden from regular customers */}
+        <div className="max-w-7xl mx-auto px-4 mt-12 pt-8 border-t border-gray-800 flex justify-between items-center text-xs text-gray-600">
+          <p>© 2024 Dearest. All rights reserved.</p>
+          
+          <div className="flex items-center gap-4">
+            {/* Clear Admin Login Button */}
+            <button 
+              onClick={handleAdminLogin}
+              className={`flex items-center gap-2 hover:text-white transition-all font-medium ${isAdmin ? 'text-white' : 'text-gray-500'}`}
+              title="Admin Login (Password: admin123)"
+              aria-label="Admin Access"
+            >
+              <Lock className="h-3 w-3" />
+              <span>{isAdmin ? 'Admin Mode Active' : 'Admin Login'}</span>
+            </button>
+          </div>
         </div>
       </footer>
     </div>

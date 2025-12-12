@@ -18,6 +18,7 @@ interface NavbarProps {
   onFilterChange: (filters: FilterState) => void;
   categories: string[];
   onFetchLatest: () => void;
+  isAdmin: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ 
@@ -33,7 +34,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   filters,
   onFilterChange,
   categories,
-  onFetchLatest
+  onFetchLatest,
+  isAdmin
 }) => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -95,15 +97,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <RefreshCw className="h-5 w-5" />
             </button>
 
-            {/* Upload Button */}
-            <button
-              onClick={onUploadClick}
-              className="p-2 text-gray-500 hover:text-black hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black"
-              aria-label="Upload product"
-              title="Upload Product"
-            >
-              <PlusCircle className="h-5 w-5" />
-            </button>
+            {/* Upload Button - Admin Only */}
+            {isAdmin && (
+              <button
+                onClick={onUploadClick}
+                className="p-2 text-gray-500 hover:text-black hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-black"
+                aria-label="Upload product"
+                title="Upload Product (Admin)"
+              >
+                <PlusCircle className="h-5 w-5" />
+              </button>
+            )}
 
             {/* Filter Button */}
             <div className="relative">
